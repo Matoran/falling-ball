@@ -8,24 +8,20 @@ import android.graphics.RectF;
  */
 
 public class Ball {
-    // Rayon de la boule
-    public static float RADIUS;
-    // Vitesse maximale autorisée pour la boule
-    private static final float MAX_SPEED = 20.0f;
     // Permet à la boule d'accélérer moins vite
     private static final float COMPENSATEUR = 8.0f;
     // Utilisé pour compenser les rebonds
     private static final float REBOND = 1.75f;
+    // Rayon de la boule
+    public static float RADIUS;
+    // Vitesse maximale autorisée pour la boule
+    private float MAX_SPEED = 20.0f;
     // Couleur de la boule
     private int color = Color.GREEN;
     // Le rectangle qui correspond à la position de départ de la boule
     private RectF initialRectangle = null;
     // Le rectangle de collision
     private RectF rectangle = null;
-    // Coordonnées en x
-    private float x;
-    // Coordonnées en y
-    private float y;
     // Vitesse sur l'axe x
     private float speedX = 0;
     // Vitesse sur l'axe y
@@ -39,6 +35,14 @@ public class Ball {
         rectangle = new RectF();
     }
 
+    public float getSpeedX() {
+        return speedX;
+    }
+
+    public float getSpeedY() {
+        return speedY;
+    }
+
     public int getColor() {
         return color;
     }
@@ -46,51 +50,35 @@ public class Ball {
     // A partir du rectangle initial on détermine la position de la boule
     public void setInitialRectangle(RectF pInitialRectangle) {
         this.initialRectangle = pInitialRectangle;
-        this.x = pInitialRectangle.left + RADIUS;
-        this.y = pInitialRectangle.top + RADIUS;
+        rectangle.set(pInitialRectangle.centerX() - RADIUS, pInitialRectangle.centerY() - RADIUS,
+                pInitialRectangle.centerX() + RADIUS, pInitialRectangle.centerY() + RADIUS
+        );
     }
 
     public float getX() {
-        return x;
+        return rectangle.centerX();
     }
 
-    public void setPosX(float pPosX) {
-        x = pPosX;
-
-        // Si la boule sort du cadre, on rebondit
-        if(x < RADIUS) {
-            x = RADIUS;
-            // Rebondir, c'est changer la direction de la balle
-            speedY = -speedY / REBOND;
-        } else if(x > width - RADIUS) {
-            x = width - RADIUS;
-            speedY = -speedY / REBOND;
-        }
+    public void setX(float x) {
+        rectangle.set(x - RADIUS, rectangle.top, x + RADIUS, rectangle.bottom);
     }
 
     public float getY() {
-        return y;
+        return rectangle.centerY();
     }
 
-    public void setPosY(float pPosY) {
-        y = pPosY;
-        if(y < RADIUS) {
-            y = RADIUS;
-            speedX = -speedX / REBOND;
-        } else if(y > height - RADIUS) {
-            y = height - RADIUS;
-            speedX = -speedX / REBOND;
-        }
+    public void setY(float y) {
+        rectangle.set(rectangle.left, y - RADIUS, rectangle.right, y + RADIUS);
     }
 
     // Utilisé quand on rebondit sur les murs horizontaux
     public void changeXSpeed() {
-        speedX = -speedX;
+        speedX = -speedX / 2;
     }
 
     // Utilisé quand on rebondit sur les murs verticaux
     public void changeYSpeed() {
-        speedY = -speedY;
+        speedY = -speedY / 2;
     }
 
     public void setHeight(int pHeight) {
@@ -103,6 +91,8 @@ public class Ball {
 
     // Mettre à jour les coordonnées de la boule
     public RectF putXAndY(float pX, float pY) {
+        float x = rectangle.centerX();
+        float y = rectangle.centerY();
         speedX += pX / COMPENSATEUR;
         if(speedX > MAX_SPEED)
             speedX = MAX_SPEED;
@@ -115,10 +105,9 @@ public class Ball {
         if(speedY < -MAX_SPEED)
             speedY = -MAX_SPEED;
 
-        setPosX(x + speedY);
-        setPosY(y + speedX);
+        x += speedX;
+        y += speedY;
 
-        // Met à jour les coordonnées du rectangle de collision
         rectangle.set(x - RADIUS, y - RADIUS, x + RADIUS, y + RADIUS);
 
         return rectangle;
@@ -127,8 +116,17 @@ public class Ball {
     // Remet la boule à sa position de départ
     public void reset() {
         speedX = 0;
-        speedY = 0;
-        this.x = initialRectangle.left + RADIUS;
-        this.y = initialRectangle.top + RADIUS;
+        speedX = 0;
+        rectangle.set(initialRectangle.centerX() - RADIUS, initialRectangle.centerY() - RADIUS,
+                initialRectangle.centerX() + RADIUS, initialRectangle.centerY() + RADIUS
+        );
+    }
+
+    public RectF getRectangle() {
+        return rectangle;
+    }
+
+    public void setMaximumSpeed(int maximumSpeed) {
+        this.MAX_SPEED = maximumSpeed;
     }
 }

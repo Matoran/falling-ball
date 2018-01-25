@@ -10,7 +10,10 @@ public class Block {
     private float SIZE;
     private Type type = null;
     private RectF rectangle = null;
+    private int row, column;
     public Block(Type type, int pX, int pY) {
+        row = pY;
+        column = pX;
         SIZE = Ball.RADIUS * 2;
         this.type = type;
         this.rectangle = new RectF(pX * SIZE, pY * SIZE, (pX + 1) * SIZE, (pY + 1) * SIZE);
@@ -24,5 +27,5 @@ public class Block {
         return rectangle;
     }
 
-    public enum  Type {START, WALL, END}
+    public enum Type {START, WALL, BONUS, MALUS, END}
 }
