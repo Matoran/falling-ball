@@ -25,6 +25,7 @@ public class GameRenderer extends SurfaceView implements SurfaceHolder.Callback 
     Paint paint;
     private List<Block> blocks = null;
     private float multiplicator;
+    private float speedMultiplicator;
     private boolean initialized = false;
     private long lastTimeDraw;
 
@@ -63,13 +64,20 @@ public class GameRenderer extends SurfaceView implements SurfaceHolder.Callback 
                         paint.setColor(Color.GREEN);
                         break;
                     case WALL:
+                    case BORDER:
+                    case PLATFORM:
                         paint.setColor(Color.WHITE);
                         break;
                     case END:
-                        paint.setColor(Color.YELLOW);
+                        paint.setColor(Color.BLACK);
                         break;
                 }
                 canvas.drawRect(b.getRectangle(), paint);
+                if (b.getType() == Block.Type.END) {
+                    paint.setColor(Color.RED);
+                    paint.setTextAlign(Paint.Align.LEFT);
+                    canvas.drawText(String.valueOf(b.getScore()), b.getRectangle().left, b.getRectangle().bottom, paint);
+                }
             }
         }
 
@@ -79,16 +87,16 @@ public class GameRenderer extends SurfaceView implements SurfaceHolder.Callback 
             canvas.drawCircle(ball.getX(), ball.getY(), Ball.RADIUS, paint);
         }
 
-        paint.setTextSize(50);
+
         paint.setColor(Color.RED);
         paint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("Score : " + this.gameEngine.getScore(), 10, 50, paint);
+        canvas.drawText("Score : " + this.gameEngine.getScore(), 0, multiplicator, paint);
         paint.setTextAlign(Paint.Align.RIGHT);
-        int hundredth = (int) this.gameEngine.getTimeLeft() % 100;
+        int milliseconds = (int) this.gameEngine.getTimeLeft() % 1000;
         int seconds = (int) (this.gameEngine.getTimeLeft() / 1000) % 60;
         int minutes = (int) ((this.gameEngine.getTimeLeft() / (1000 * 60)) % 60);
 
-        canvas.drawText(minutes + ":" + String.format("%02d", seconds) + ":" + String.format("%02d", hundredth), canvas.getWidth() - 5, 50, paint);
+        canvas.drawText(minutes + ":" + String.format("%02d", seconds) + ":" + String.format("%03d", milliseconds), canvas.getWidth(), multiplicator, paint);
     }
 
     @Override
@@ -112,6 +120,7 @@ public class GameRenderer extends SurfaceView implements SurfaceHolder.Callback 
             System.out.println("ratio plus grand");
             multiplicator = (float)getHeight() / GameEngine.ROWS;
         }
+        paint.setTextSize(multiplicator);
         System.out.println("multiplicator: "  + multiplicator);
         gameEngine.surfaceCreated();
         blocks = gameEngine.getBlocks();
@@ -122,15 +131,16 @@ public class GameRenderer extends SurfaceView implements SurfaceHolder.Callback 
         }
         switch (gameEngine.getDifficulty()) {
             case EASY:
-                ball.setMaximumSpeed(5);
+                speedMultiplicator = 1;
                 break;
             case MEDIUM:
-                ball.setMaximumSpeed(10);
+                speedMultiplicator = 2;
                 break;
             case HARD:
-                ball.setMaximumSpeed(100);
+                speedMultiplicator = 4;
                 break;
         }
+        gameEngine.setSpeedMultiplicator(speedMultiplicator);
     }
 
     @Override

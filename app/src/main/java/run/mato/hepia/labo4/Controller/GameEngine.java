@@ -1,12 +1,16 @@
 package run.mato.hepia.labo4.Controller;
 
 import android.app.Service;
+import android.content.Context;
 import android.graphics.RectF;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -17,21 +21,24 @@ import run.mato.hepia.labo4.Model.Ball;
 import run.mato.hepia.labo4.Model.Block;
 import run.mato.hepia.labo4.Model.Block.Type;
 import run.mato.hepia.labo4.Model.Difficulty;
+import run.mato.hepia.labo4.R;
 import run.mato.hepia.labo4.View.GameRenderer;
 
-/**
- * Created by matoran on 1/6/18.
- */
 
+/**
+ *
+ */
 public class GameEngine {
     public static final int ROWS = 32;
     public static final int COLUMNS = 18;
     private final Difficulty difficulty;
     private final int POURCENTAGE_BONUS = 1;
-    boolean pause = false;
+    boolean first = true;
+    private boolean pause = false;
     private float y = 9.8f;
     private float x = 0;
-    private float timeLeft = 10;
+    //milliseconds
+    private float timeLeft = 120000;
     private SensorEventListener mSensorEventListener = new SensorEventListener() {
 
         @Override
@@ -55,14 +62,16 @@ public class GameEngine {
     private boolean initialized = false;
     private int score = 0;
     private long lastTime;
+    private Context baseContext;
+    private float speedMultiplicator;
 
-    public GameEngine(GameActivity gameActivity, Difficulty difficulty) {
+    public GameEngine(GameActivity gameActivity, Difficulty difficulty, Context baseContext) {
         this.difficulty = difficulty;
-        this.multiplicator = multiplicator;
         mActivity = gameActivity;
         sensorManager = (SensorManager) mActivity.getBaseContext().getSystemService(Service.SENSOR_SERVICE);
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         view = new GameRenderer(gameActivity, this);
+        this.baseContext = baseContext;
     }
 
     public Ball getBall() {
@@ -91,8 +100,88 @@ public class GameEngine {
         pause = false;
     }
 
+    public void readFile() {
+        InputStreamReader input = null;
+        BufferedReader reader = null;
+        Block block = null;
+        blocks.clear();
+        try {
+            input = new InputStreamReader(baseContext.getResources().openRawResource(R.raw.lab1));
+            reader = new BufferedReader(input);
+
+            // L'indice qui correspond aux colonnes dans le fichier
+            int column = 0;
+            // L'indice qui correspond aux lignes dans le fichier
+            int row = 0;
+
+            // La valeur récupérée par le flux
+            int c;
+            // Tant que la valeur n'est pas de -1, c'est qu'on lit un caractère du fichier
+            while ((c = reader.read()) != -1) {
+
+                char character = (char) c;
+                if (character >= '0' && character <= '9')
+                    block = new Block(Type.END, column, row, (character - '0') * 10);
+                if (character == 's') {
+                    Block start = new Block(Type.START, column, row);
+                    ;
+                    ball.setInitialRectangle(start.getRectangle());
+                    blocks.add(start);
+                } else if (character == 'e')
+                    block = new Block(Type.END, column, row);
+                else if (character == '-')
+                    block = new Block(Type.PLATFORM, column, row);
+                else if (character == '|')
+                    block = new Block(Type.WALL, column, row);
+                else if (character == '#')
+                    block = new Block(Type.BORDER, column, row);
+                else if (character == 'b')
+                    block = new Block(Type.BONUS, column, row);
+                else if (character == 'm')
+                    block = new Block(Type.MALUS, column, row);
+                else if (character == '\n') {
+                    // Si le caractère est un retour à la ligne, on retourne avant la première colonne
+                    // Car on aura column++ juste après, ainsi column vaudra 0, la première colonne !
+                    column = -1;
+                    // Et on passe à la ligne suivante
+                    row++;
+                }
+                // Si le bloc n'est pas nul, alors le caractère n'était pas un retour à la ligne
+                if (block != null)
+                    // On l'ajoute alors au labyrinthe
+                    blocks.add(block);
+                // On passe à la colonne suivante
+                column++;
+                // On remet bloc à null, utile quand on a un retour à la ligne pour ne pas ajouter de bloc qui n'existe pas
+                block = null;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (input != null)
+                try {
+                    input.close();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            if (reader != null)
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+        }
+
+    }
+
     // Construit le labyrinthe
-    public List<Block> buildLabyrinthe() {
+    public void buildLabyrinthe() {
+        if (first) {
+            readFile();
+            first = false;
+            return;
+        }
+
         blocks.clear();
         Random random = new Random();
         Block start = new Block(Type.START, 2, 2);
@@ -101,8 +190,9 @@ public class GameEngine {
         boolean previousEmpty = false;
         for (int row = 0; row < ROWS; row++) {
             for (int column = 0; column < COLUMNS; column++) {
+                //les bordures
                 if (column == 0 || column == COLUMNS - 1 || row == 0 || row == ROWS - 1) {
-                    blocks.add(new Block(Type.WALL, column, row));
+                    blocks.add(new Block(Type.BORDER, column, row));
                 } else {
                     if ((row + 1) % 4 == 0 && !previousEmpty && row != 28) {
                         int rand = random.nextInt(100 / POURCENTAGE_BONUS);
@@ -113,7 +203,7 @@ public class GameEngine {
                         }
                     } else if (row % 4 == 0 && !previousEmpty && row != 28) {
                         if (random.nextBoolean()) {
-                            blocks.add(new Block(Type.WALL, column, row));
+                            blocks.add(new Block(Type.PLATFORM, column, row));
                         } else {
                             previousEmpty = true;
                         }
@@ -125,18 +215,18 @@ public class GameEngine {
         }
         for (int column = 1; column < COLUMNS - 1; column++) {
             if (column % 3 == 0 || (column - 1) % 3 == 0) {
-                blocks.add(new Block(Type.END, column, ROWS - 2));
+                blocks.add(new Block(Type.END, column, ROWS - 2, random.nextInt(10) * 10));
             } else {
                 blocks.add(new Block(Type.WALL, column, ROWS - 2));
             }
         }
-        return blocks;
     }
 
     public void surfaceCreated() {
-        initialized = true;
-        ball = new Ball(view.getMultiplicator());
+        multiplicator = view.getMultiplicator();
+        ball = new Ball(multiplicator);
         buildLabyrinthe();
+        initialized = true;
     }
 
     public GameRenderer getView() {
@@ -148,12 +238,12 @@ public class GameEngine {
     }
 
     public void update() {
-        if (pause)
+        if (pause || !initialized)
             return;
         if (ball == null)
             return;
         // On met à jour les coordonnées de la Ball
-        ball.putXAndY(x, y);
+        ball.putXAndY(x * speedMultiplicator * multiplicator / 100, y * speedMultiplicator * multiplicator / 100);
 
         // Pour tous les blocs du labyrinthe
         boolean end = false;
@@ -162,26 +252,26 @@ public class GameEngine {
             // On crée un nouveau rectangle pour ne pas modifier celui du bloc
             RectF inter = new RectF(ball.getRectangle());
             if (inter.intersect(block.getRectangle())) {
-
                 // On agit différement en fonction du type de bloc
                 switch (block.getType()) {
+                    case PLATFORM:
                     case WALL:
-                        System.out.println("collision");
+                    case BORDER:
                         detectSide(block);
                         break;
                     case BONUS:
                         iterator.remove();
-                        timeLeft += 1;
+                        timeLeft += 1000;
                         break;
                     case MALUS:
                         iterator.remove();
-                        timeLeft -= 1;
+                        timeLeft -= 1000;
                         break;
                     case START:
                         break;
 
                     case END:
-                        score += 100;
+                        score += block.getScore();
                         end = true;
                         break;
                 }
@@ -193,7 +283,7 @@ public class GameEngine {
         }
 
         long currentTime = System.currentTimeMillis();
-        timeLeft -= (currentTime - lastTime) / 1000f;
+        timeLeft -= (currentTime - lastTime);
         if (timeLeft <= 0) {
             mActivity.runOnUiThread(new Runnable() {
                 public void run() {
@@ -205,19 +295,23 @@ public class GameEngine {
     }
 
     private void detectSide(Block block) {
-        if (ball.getSpeedY() > 0 && Math.abs(ball.getY() - block.getRectangle().top) < Ball.RADIUS) {
+        if (ball.getSpeedY() > 0 && (block.getRectangle().top - ball.getY()) > 0 &&
+                (block.getRectangle().top - ball.getY()) < Ball.RADIUS) {
             ball.setY(block.getRectangle().top - Ball.RADIUS);
             ball.changeYSpeed();
-            System.out.println("bottom");
+        } else if (ball.getSpeedY() < 0 && (ball.getY() - block.getRectangle().bottom) > 0 &&
+                (ball.getY() - block.getRectangle().bottom) < Ball.RADIUS) {
+            ball.setY(block.getRectangle().bottom + Ball.RADIUS);
+            ball.changeYSpeed();
         } else if (ball.getSpeedX() > 0) {
             if (Math.abs(ball.getX() - block.getRectangle().left) < Ball.RADIUS) {
-                ball.setX(block.getRectangle().left - Ball.RADIUS);
+                ball.setX(block.getRectangle().left - Ball.RADIUS - 2);
                 ball.changeXSpeed();
                 System.out.println("right");
             }
         } else if (ball.getSpeedX() < 0) {
             if (Math.abs(ball.getX() - block.getRectangle().right) < Ball.RADIUS) {
-                ball.setX(block.getRectangle().right + Ball.RADIUS);
+                ball.setX(block.getRectangle().right + Ball.RADIUS + 2);
                 ball.changeXSpeed();
                 System.out.println("left");
             }
@@ -236,5 +330,9 @@ public class GameEngine {
 
     public float getTimeLeft() {
         return timeLeft;
+    }
+
+    public void setSpeedMultiplicator(float speedMultiplicator) {
+        this.speedMultiplicator = speedMultiplicator;
     }
 }

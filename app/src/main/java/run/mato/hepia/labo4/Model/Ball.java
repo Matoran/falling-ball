@@ -125,8 +125,4 @@ public class Ball {
     public RectF getRectangle() {
         return rectangle;
     }
-
-    public void setMaximumSpeed(int maximumSpeed) {
-        this.MAX_SPEED = maximumSpeed;
-    }
 }

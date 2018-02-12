@@ -13,11 +13,6 @@ import run.mato.hepia.labo4.View.GameRenderer;
 
 
 public class GameActivity extends Activity {
-    // Identifiant de la boîte de dialogue de victoire
-    public static final int VICTORY_DIALOG = 0;
-    // Identifiant de la boîte de dialogue de défaite
-    public static final int DEFEAT_DIALOG = 1;
-
     // Le moteur graphique du jeu
     private GameRenderer view;
     // Le moteur physique du jeu
@@ -28,7 +23,7 @@ public class GameActivity extends Activity {
         super.onCreate(savedInstanceState);
         Intent intent = getIntent();
         Difficulty difficulty = (Difficulty) intent.getSerializableExtra("difficulty");
-        engine = new GameEngine(this, difficulty);
+        engine = new GameEngine(this, difficulty, getBaseContext());
         setContentView(engine.getView());
     }
 
